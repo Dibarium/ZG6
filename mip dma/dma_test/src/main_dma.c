@@ -3,7 +3,7 @@
 #include "include/board.h"
 #include "lib/io.h"
 
-#define MAIN1
+#define MAIN2
 
 #ifdef MAIN1
 /***************************************************************************
@@ -151,23 +151,23 @@ int uart_puts(USART_t *u, char *s)
 	
 	DMAEndPoint_t ep_buf = {			// src
 		.type    = EP_MEM,
-		//.addr0   = A COMPLETER,
+		.addr0   = s,
 		.addr1   = NULL,
 		.channel = -1,
-		//.cfg     = A COMPLETER
+		.cfg     = (1<<10)
 	};
 	
 	DMAEndPoint_t dma1s6_uart2_tx = {	// dest
 		.type    = EP_UART_TX,
-		//.addr0   = A COMPLETER,
+		.addr0   = ((void*)&u->DR),
 		.addr1   = NULL,
-		//.channel = A COMPLETER,
-		//.cfg     = A COMPLETER
+		.channel = 4,
+		.cfg     = (0<<10)
 	};
 	
 	if (!s || s[0]==0) return 0;
 
-	DMA_Stream_t *strm = dma_stream_init(_DMA1, /*A MODIFIER*/0, &ep_buf, &dma1s6_uart2_tx, STRM_FIFO_TH4, NULL);
+	DMA_Stream_t *strm = dma_stream_init(_DMA1, 5, &ep_buf, &dma1s6_uart2_tx, STRM_FIFO_TH4, NULL);
 	
 	len = strlen(s);
 	u->CR3 |= 1<<7;					// enable DMA Transmit
@@ -181,17 +181,17 @@ int uart_gets(USART_t *u, char *buf, int len)
 {
 	DMAEndPoint_t ep_buf = {			// dest
 		.type    = EP_MEM,
-		//.addr0   = A COMPLETER,
+		.addr0   = buf,
 		.addr1   = NULL,
 		.channel = -1,
-		//.cfg     = A COMPLETER
+		.cfg     = (1<<10)
 	};
 	DMAEndPoint_t dma1s5_uart2_rx = {	// src
 		.type    = EP_UART_RX,
-		//.addr0   = A COMPLETER,
+		.addr0   = ((void*)&u->DR),
 		.addr1   = NULL,
-		//.channel = A COMPLETER,
-		//.cfg     = A COMPLETER
+		.channel = 4,
+		.cfg     = (0<<10)
 	};
 
 	if (!buf) return 0;
@@ -200,7 +200,7 @@ int uart_gets(USART_t *u, char *buf, int len)
 		return 0;
 	}
 
-	DMA_Stream_t* strm = dma_stream_init(_DMA1, /*A MODIFIER*/0, &dma1s5_uart2_rx, &ep_buf, 0, NULL);
+	DMA_Stream_t* strm = dma_stream_init(_DMA1, 5, &dma1s5_uart2_rx, &ep_buf, 0, NULL);
 	u->CR3 |= 1<<6;					// enable DMA Receive
 	dma_start(strm,len);
 	while (!dma_complete(strm)) ;	// wait until transmission complete
