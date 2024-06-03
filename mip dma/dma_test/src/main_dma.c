@@ -39,8 +39,8 @@ int main()
 	_DMA1_Stream6->PAR  = (uint32_t)&_USART2->DR;		// USART2_BASE+4 = DR address 0x40004404;
 	_DMA1_Stream6->NDTR = strlen(buf_tx);
 	_DMA1_Stream6->FCR  = 0;
-	//_DMA1_Stream6->CR   =  A COMPLETER: CHSEL, MINC, DIR, ... ;
-	//_DMA1_Stream6->CR   |=  A COMPLETER:  EN ;
+	_DMA1_Stream6->CR   =  (4<<25) | (1<<10) | (1<<6);
+	_DMA1_Stream6->CR   |=  (1<<0);
 	
 	while(_DMA1_Stream6->CR & 1) ;
 	
@@ -51,8 +51,8 @@ int main()
 		_DMA1_Stream5->PAR  = (uint32_t)&_USART2->DR;	// USART2_BASE+4 = DR address 0x40004404;
 		_DMA1_Stream5->NDTR = 10;
 		_DMA1_Stream5->FCR  = 0;
-		//_DMA1_Stream5->CR   = A COMPLETER: CHSEL, MINC, DIR, ... ;
-		//_DMA1_Stream5->CR   |= A COMPLETER: EN ;
+		_DMA1_Stream5->CR   = (4<<25) | (1<<10);
+		_DMA1_Stream5->CR   |= (1<<0);
 		while(_DMA1_Stream5->CR & 1) ;
 		buf_rx[10]=0;
 		// echo the data
@@ -61,8 +61,8 @@ int main()
 		_DMA1_Stream6->PAR  = (uint32_t)&_USART2->DR;	// USART2_BASE+4 = DR address 0x40004404;
 		_DMA1_Stream6->NDTR = strlen(buf_rx);
 		_DMA1_Stream6->FCR  = 0;
-		//_DMA1_Stream6->CR   = A COMPLETER: CHSEL, MINC, DIR, ... ;
-		//_DMA1_Stream6->CR   |= A COMPLETER: EN ;
+		_DMA1_Stream6->CR   =  (4<<25) | (1<<10) | (1<<6);
+		_DMA1_Stream6->CR   |=  (1<<0);
 		while(_DMA1_Stream6->CR & 1) ; 
 	}
 	return 1;
