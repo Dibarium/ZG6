@@ -1,0 +1,7 @@
+#! arm-none-eabi-gdb
+open lib/*.c
+target extended-remote localhost:3333
+load
+monitor reset halt
+tbreak main
+continue
