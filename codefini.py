@@ -108,6 +108,10 @@ def detect_bounding_box(vid):
 fenetre = Tk()
 label = Label(fenetre, text="visage")
 
+################ Récupération des micros ################
+
+
+################ Boucle main ################
 while True:
 
     result, video_frame = video_capture.read()  # read frames from the video

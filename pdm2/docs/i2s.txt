@@ -1,0 +1,153 @@
+# I2S Peripheral (Master mode)
+
+
+I2S2(+I2S2ext) / I2S3(+I2S3ext)
+
+## Principle
+
+Pins
+- CK [SCK SPI pin] : transmit/receive clock
+- SD [MOSI SPI pin]: serialized data
+- WS [NSS SPI pin] : word select: data control signal
+- ext_SD [MISO SPI pin]: control of full duplex mode
+
+Transmit/receive up to 2 serialized (MSbit first) data channels
+(left and right).
+
+Data latched on fallling edge of CK clock
+
+Each channel
+
+- may be 16/24/32 bit long.
+- can be mapped according 
+          16 bit data --> 16 bit data time slot
+          32 bit data --> 32 bit data time slot
+          16 bit data --> 32 bit data time slot (16 0-bits)
+          24 bit data --> 32 bit data time slot (8 0-bits)
+
+
+Operating modes
+
+- Half duplex mode I2S2 ==> transmission or reception
+- Full duplex mode I2S2+extension ==> transmission and reception
+
+
+**Supported protocols**
+
+- Philips: WS indicates the transmitted channel, activated 1 CK 
+           clock cycle brfore first data bit
+           WS=0 --> left channel
+           WS=1 --> right channel
+           0-bits at the end of the time slot
+- MSB/LSB justified: WS generated at the same time as the first bit
+           WS=1 --> left channel
+           WS=0 --> right channel
+           0-bits at the end (MSB) / start (LSB) of the time slot
+           
+- PCM:     WS used as a PCM Sync signal
+           - short frame sync : 1 CK clock cycle long before the first data bit
+           - long frame sync : 13 CK clock cycle long starting with the first data bit
+
+
+**I2S bitrate**
+
+```
+I2S bitrate = nb of bits per channel x nb of channels x sampling audio frequency
+  [bit/s]
+            = nb bit/channels x channels x Fs
+            
+     16/32bit/channel
+   <--------->
+    _________  _________  _________  _________
+   /  left   \/  right  \/  left   \/  right  \
+   \_________/\_________/\_________/\_________/
+   <-------------------->
+           dt=1/Fs
+      
+bit duration = dt / (bits/channel x nb channels)   [s]
+   
+bitrate = 1 / (bit duration) = bits/channel x channels x Fs  [bit/s]
+```
+
+## STM32 I2S clock signal and PLLI2S Configurations
+
+* **I2S clock signal configuration**
+
+    I2S peripheral clock source provided by PLLI2S --> Fclk
+  
+    bitrate = Fclk / DIV
+    
+    DIV = 2xI2SDIV+I2SODD
+    
+    DIV must be > 3.
+    
+    ```
+    DIV = Fclk/(Fs*bits_per_chan*nb_chan);
+    I2SDIV = DIV>>1;
+    I2SODD = DIV&1;
+    ```
+    
+* **PLLI2S Configuration**
+    
+    ```
+    8MHz     HSE/M ___
+    HSE  +---+   +/   \    +-----+      +---+
+    ---->|/M |--->| X |--->| VCO |--+-->|/R |---> Fclk I2S = HSE*N/M/R
+         +---+    \___/    +-----+  |   +---+
+                  - ^               |
+                    |       +---+   |
+                    +-------|/N |<--+ HSE*N/M
+                            +---+
+    ```
+    
+* **Example** from table 90 p. 595
+    
+    Fs = 48kHz, 16bit/chan, 2 channels ==> bitrate=1536000 bit/s
+
+	I2SDIV=12, I2SODD=1 ==> DIV = 2*I2SDIV+I2SODD = 25
+	
+	                    ==> Fclk = DIV*bitrate = 38.4MHz
+	                    
+	N=192, R=5 ==> HSE/M = Fclk*R/N = 1MHz
+	
+	HSE = 8MHz ==> M = 8
+
+	Note that, according to the datasheet (table 42, p.88), the VCO
+	output frequency has to be set such that 100Mhz < HSE*N/M < 432 MHz
+	with 1MHz < HSE/M < 2MHz
+	
+## STM32 I2S Peripheral configuration
+
+* I2SPR (prescaler)
+
+	I2SPR[7:0] = I2SDIV
+	I2SPR[8] = I2SODD
+	IS2PR[9] master clock output (provide clock for CODEC)
+
+* CR2 (control register 2)
+
+	CR2[7]       --> TxE Interrupt Enable
+	CR2[6]       --> RxNE Interrupt Enable
+	CR2[5]       --> Error Interrupt Enable
+	CR2[1]       --> Tx DMA enable
+	CR2[0]       --> Rx DMA enable
+	
+* IS2CFGR (config register)
+
+	I2SCFGR[11]=1 --> I2S mode selected
+	I2SCFGR[10]=1 --> I2S enabled
+	I2SCFGR[9:8]  --> mode: 00 (slave Tx), 01 (slave Rx), 10 (master Tx), 11 (master Rx)
+	I2SCFGR[5:4]  --> STD: 00 Philips, 01 MSB, 10 LSB, 11 PCM
+	I2SCFGR[3]    --> CKPOL : steady state clock polarity
+	I2SCFGR[2:1]  --> data length: 00 16bits, 01 24bits, 10 32bits
+	I2SCFGR[0]    --> channel len when data length==16bits: 0 16bits, 1 32bits (with 16 0-bits)
+
+* DR (data register -- 16bits wide)
+
+* SR (status register)
+
+	SR[7]    --> busy
+	SR[2]    --> CHSIDE: 0 left chan / 1 right chan transmitted or received
+	SR[1]    --> TxE Transmit buffer empty
+	SR[0]    --> RxNE Receive buffer not empty
+	
